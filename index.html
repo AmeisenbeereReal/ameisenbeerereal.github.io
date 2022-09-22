@@ -1,7 +1,254 @@
-<!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+
+    <meta name="description" content="Dein Minecraft Server">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+    <link href="https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700,800,900" rel="stylesheet">
+
+    <link rel="stylesheet" href="css/bootstrap.css">
+    <link rel="stylesheet" href="css/all.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/login.css">
+    <?php
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+    error_reporting(E_ALL);
+    require_once './inc/sqlinc.php';
+    echo '<title>' . PAGETITLE . '</title>';
+    session_start();
+
+    if(isset($_SESSION['username'])){
+        header("Location: home.php");
+    }
+
+    if(isset($_COOKIE['auth'])){
+        $data = json_decode($_COOKIE['auth']);
+        $pl = validateLogin($data->uuid,$data->auth);
+        if($pl != null) {
+            $_SESSION['username'] = $pl->name;
+            $_SESSION['uuid'] = $pl->uuid;
+            header("Location: home.php");
+        }
+    }
+    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+        $_SESSION['POST'] = $_POST;
+        unset($_POST);
+        header("Location: ".$_SERVER['PHP_SELF']);
+        exit;
+    }
+    ?>
+
+    <?php
+
+
+    //LOGIN
+
+    $username_str = "";
+    $login_class = "";
+    if(isset($_SESSION['POST']['submit-login'])){
+        $username_str = $_SESSION['POST']['username'];
+        $password_str = $_SESSION['POST']['password'];
+        $pl = validateLogin($username_str, $password_str);
+        if($pl == null){
+            $login_class = "is-invalid";
+        }else{
+            $_SESSION['username'] = $pl->name;
+            $_SESSION['uuid'] = $pl->uuid;
+            header("Location: home.php");
+        }
+        unset($_SESSION['POST']);
+    }
+
+
+
+    //REGISTER
+    $class_key = "";
+    $class_password = "";
+    $value_key = "";
+    $value_password = "";
+    if(isset($_SESSION['POST']['submit-register'])){
+        $valid_key = keyExists($_SESSION['POST']['registerkey']);
+        $value_key = $_SESSION['POST']['registerkey'];
+        $valid_password = $_SESSION['POST']['password']==$_SESSION['POST']['password-second'];
+        if($_SESSION['POST']['password'] == "" || $_SESSION['POST']['password'] == " "){
+            $valid_password = false;
+        }
+        $value_password = $_SESSION['POST']['password'];
+        if($valid_key){
+            $class_key = "is-valid";
+        }else{
+            $class_key = "is-invalid";
+        }
+        if($valid_password){
+            $class_password = "is-valid";
+        }else{
+            $class_password = "is-invalid";
+        }
+        if($valid_key && $valid_password){
+            $player =  register($_SESSION['POST']['registerkey'], $_SESSION['POST']['password']);
+            $_SESSION['username'] = $player->name;
+            $_SESSION['uuid'] = $player->uuid;
+            header("Location: home.php");
+        }
+        unset($_SESSION['POST']);
+    }
+    ?>
+</head>
+
 <body>
-<h1>Hello World</h1>
-<p>I'm hosted with GitHub Pages.</p>
+<div class="background"></div>
+    <div class="content-window-parent" style="width: 900px">
+
+        <div class="content-window">
+            <div id="menu" style="display: flex; transition: 2s">
+                <div id="login" class="<?php if(isset($_GET['key']) || isset($_SESSION['POST']['register'])){echo "hide";}else{echo "show";} ?>" style="flex: 0 0 100%; height: 100%; width: 100%;">
+                    <div class="content" style="display: flex; margin: 20px;">
+
+                        <div class="container">
+                            <div class="row">
+                                <div class="container-header">
+                                    <div class="container-header-icon">
+                                        <div class="animation-user">
+                                            <i class="fa fa-user icon"></i>
+                                        </div>
+                                    </div>
+                                    <div class="container-header-text">
+                                        <h1>Control Panel</h1>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm" style="margin-top: 50px">
+                                    <h1>Einloggen</h1>
+                                    <hr>
+                                    <form method="post">
+                                        <div class="input-group mb-3">
+                                            <span class="input-group-text" id="username">Ingame Name</span>
+                                            <input name="username" type="text" id="username" class="form-control <?php echo $login_class; ?>" placeholder=""
+                                                   aria-label="" aria-describedby="username">
+                                        </div>
+                                        <div class="input-group mb-3">
+                                            <span class="input-group-text" id="password">Passwort</span>
+                                            <input name="password" type="password" id="password" class="form-control <?php echo $login_class; ?>" placeholder=""
+                                                   aria-label="" aria-describedby="password">
+                                        </div>
+                                        <button id="showRegister" type="button" class="btn btn-outline-primary">Registrieren</button>
+                                        <button name="submit-login" id="submit-login" type="submit" class="btn btn-outline-primary" style="float: right">Login</button>
+                                    </form>
+                                </div>
+                                <div class="col-sm" style="margin-top: 50px">
+                                    <h1>Neu hier?</h1>
+                                    <hr>
+                                    <p>
+                                        Kein Problem!<br>
+                                        Joine einfach unseren Server und gib den Befehl /webaccount in die Kommandozeile
+                                        ein! Den Code den
+                                        du dann erhältst, kannst musst du dann beim <a id="register-link" href="#">Registrieren</a>
+                                        angeben!
+                                    </p>
+                                    <h1>Passwort vergessen?</h1>
+                                    <hr>
+                                    <p>
+                                        Solltest du dein Passwort vergessen, kannst du die Registration einfach neu
+                                        durchführen!
+                                        Deine Daten bleiben dabei erhalten!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div id="register" class="<?php if(isset($_GET['key']) || isset($_SESSION['POST']['register'])){echo "show";}else{echo "hide";} ?>" style="flex: 1 0 100%;  height: 100%; width: 100%;">
+
+                    <div class="content" style="display: flex; margin: 20px;">
+
+                        <div class="container">
+                            <div class="row">
+                                <div class="container-header">
+                                    <div class="container-header-icon">
+                                        <div class="animation-user">
+                                            <i class="fa fa-user icon"></i>
+                                        </div>
+                                    </div>
+                                    <div class="container-header-text">
+                                        <h1>Control Panel</h1>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm" style="margin-top: 50px">
+                                    <h1>Registrieren</h1>
+                                    <hr>
+                                    <form method="post">
+                                        <div class="input-group mb-3">
+                                            <span class="input-group-text" id="username">Register-Key</span>
+                                            <input type="text" name="registerkey" id="registerkey" class="form-control <?php echo $class_key ?>" placeholder=""
+                                                   aria-label="" aria-describedby="username" value="<?php if(isset($_GET['key'])){ echo $_GET['key'];}else{echo $value_key;} ?>">
+                                        </div>
+                                        <div class="input-group mb-3">
+                                            <span class="input-group-text" id="password">Passwort</span>
+                                            <input type="password" name="password" id="password" class="form-control <?php echo $class_password ?>" placeholder=""
+                                                   aria-label="" aria-describedby="password" value="<?php echo $value_password ?>">
+                                        </div>
+                                        <div class="input-group mb-3">
+                                            <span class="input-group-text"
+                                                  id="password-second">Passwort wiederholen</span>
+                                            <input type="password" name="password-second" id="password-second" class="form-control <?php echo $class_password ?>"
+                                                   placeholder="" aria-label="" aria-describedby="password-second">
+                                        </div>
+                                        <button id="showLogin" type="button" class="btn btn-outline-primary">Einloggen</button>
+                                        <button name="submit-register" type="submit" id="submit-register" class="btn btn-outline-primary" style="float: right">Registrieren</button>
+                                    </form>
+                                </div>
+                                <div class="col-sm" style="margin-top: 50px">
+                                    <h1>Was ist ein Register Key?</h1>
+                                    <hr>
+                                    <p>
+                                        Der Register Key wird verwendet, um dich mit deinem Minecraft-Account zu
+                                        verifizieren.
+                                        Du erhältst ihn, indem du auf unseren Server joinst, und /webaccount in die
+                                        Kommandozeile eingibst! <br>
+                                        Deinen Namen ermitteln wir anhand der Keys!
+                                    </p>
+                                    <h1>Passwort vergessen?</h1>
+                                    <hr>
+                                    <p>
+                                        Solltest du dein Passwort vergessen, kannst du die Registration einfach neu
+                                        durchführen!
+                                        Deine Daten bleiben dabei erhalten!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    document.getElementById("showRegister").addEventListener("click", register);
+    document.getElementById("register-link").addEventListener("click", register);
+    document.getElementById("showLogin").addEventListener("click", login);
+
+    function register() {
+        document.getElementById("login").classList.add("hide");
+        document.getElementById("login").classList.remove("show")
+        document.getElementById("register").classList.add("show");
+        document.getElementById("register").classList.remove("hide");
+    }
+
+    function login() {
+        document.getElementById("login").classList.add("show");
+        document.getElementById("login").classList.remove("hide");
+        document.getElementById("register").classList.add("hide");
+        document.getElementById("register").classList.remove("show")
+    }
+</script>
+
 </body>
 </html>
